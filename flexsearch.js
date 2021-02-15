@@ -39,6 +39,7 @@
 
             encode: "icase",
             tokenize: "forward",
+            splitFn: undefined,
             split: /\W+/,
             // enrich: true,
             // clone: false,
@@ -424,6 +425,8 @@
                         custom
                 )
             );
+
+            this.splitFn = options["splitFn"];
 
             /** @private */
             this.rtl = (
@@ -962,21 +965,15 @@
 
                 const tokenizer = this.tokenize;
 
-                let words = (
+                let words = [];
 
-                    is_function(tokenizer) ?
-
-                        tokenizer(content)
-                    :(
-                        //SUPPORT_ENCODER && (tokenizer === "ngram") ?
-
-                            /** @type {!Array<string>} */
-                            //(ngram(/** @type {!string} */(content)))
-                        //:
-                            /** @type {string} */
-                            (content).split(this.split)
-                    )
-                );
+                if(is_function(this.splitFn)) {
+                  words = this.splitFn(content);
+                } else if (is_function(tokenizer)) {
+                  words = tokenizer(content);
+                } else {
+                  words = (content).split(this.split);
+                };
 
                 if(this.filter){
 
