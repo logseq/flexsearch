@@ -39,7 +39,6 @@
 
             encode: "icase",
             tokenize: "forward",
-            splitFn: undefined,
             split: /\W+/,
             // enrich: true,
             // clone: false,
@@ -425,8 +424,6 @@
                         custom
                 )
             );
-
-            this.splitFn = options["splitFn"];
 
             /** @private */
             this.rtl = (
@@ -967,16 +964,13 @@
 
                 let words = [];
 
-                if(is_function(this.splitFn)) {
-                  words = this.splitFn(content);
-                } else if (is_function(tokenizer)) {
+                if (is_function(tokenizer)) {
                   words = tokenizer(content);
                 } else {
                   words = (content).split(this.split);
                 };
 
                 if(this.filter){
-
                     words = filter_words(words, this.filter);
                 }
 
@@ -991,7 +985,6 @@
                 const rtl = this.rtl;
 
                 // tokenize
-
                 for(let i = 0; i < word_length; i++){
 
                     /** @type {string} */
@@ -1032,19 +1025,16 @@
 
                             // Note: no break here, fallthrough to next case
 
-                            case "forward":
-
-                                for(let a = 0; a < length; a++){
+                        case "forward":
+                             for(let a = 0; a < length; a++){
 
                                     token += value[a];
-
                                     add_index(
-
                                         map,
                                         dupes,
                                         token,
                                         id,
-                                        rtl ? (a + 1) / length : 1,
+                                        1,
                                         context_score,
                                         threshold,
                                         resolution - 1
@@ -1082,49 +1072,51 @@
                             //case "strict":
                             //case "ngram":
                             default:
+                            for(let a = 0; a < length; a++) {
 
-                                const score = add_index(
+                            token += value[a];
+                            const score = add_index(
 
-                                    map,
-                                    dupes,
-                                    value,
-                                    id,
-                                    // Note: ngrams has partial scoring (sequence->word) and contextual scoring (word->context)
-                                    // TODO compute and pass distance of ngram sequences as the initial score for each word
-                                    1,
-                                    context_score,
-                                    threshold,
-                                    resolution - 1
+                              map,
+                              dupes,
+                              token,
+                              id,
+                              // Note: ngrams has partial scoring (sequence->word) and contextual scoring (word->context)
+                              // TODO compute and pass distance of ngram sequences as the initial score for each word
+                              1,
+                              context_score,
+                              threshold,
+                              resolution - 1
+                            );
+
+                            if(depth && (word_length > 1) && (score >= threshold)){
+
+                              const ctxDupes = dupes["_ctx"][value] || (dupes["_ctx"][value] = create_object());
+                              const ctxTmp = this._ctx[value] || (this._ctx[value] = create_object_array(resolution - (threshold || 0)));
+
+                              let x = i - depth;
+                              let y = i + depth + 1;
+
+                              if(x < 0) x = 0;
+                              if(y > word_length) y = word_length;
+
+                              for(; x < y; x++){
+
+                                if(x !== i) add_index(
+
+                                  ctxTmp,
+                                  ctxDupes,
+                                  words[x],
+                                  id,
+                                  0,
+                                  resolution - (x < i ? i - x : x - i),
+                                  threshold,
+                                  resolution - 1
                                 );
-
-                                if(depth && (word_length > 1) && (score >= threshold)){
-
-                                    const ctxDupes = dupes["_ctx"][value] || (dupes["_ctx"][value] = create_object());
-                                    const ctxTmp = this._ctx[value] || (this._ctx[value] = create_object_array(resolution - (threshold || 0)));
-
-                                    let x = i - depth;
-                                    let y = i + depth + 1;
-
-                                    if(x < 0) x = 0;
-                                    if(y > word_length) y = word_length;
-
-                                    for(; x < y; x++){
-
-                                        if(x !== i) add_index(
-
-                                            ctxTmp,
-                                            ctxDupes,
-                                            words[x],
-                                            id,
-                                            0,
-                                            resolution - (x < i ? i - x : x - i),
-                                            threshold,
-                                            resolution - 1
-                                        );
-                                    }
-                                }
-
-                                break;
+                              }
+                            }
+                          }
+                          break;
                         }
                     }
                 }
@@ -2900,8 +2892,7 @@
          * @param {number} resolution
          */
 
-        function add_index(map, dupes, value, id, partial_score, context_score, threshold, resolution){
-
+      function add_index(map, dupes, value, id, partial_score, context_score, threshold, resolution){
             /*
             if(index_blacklist[value]){
 
